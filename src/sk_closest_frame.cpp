@@ -60,7 +60,12 @@ void getSKVectors(const std::string& target_frame,const std::string& base_frame,
     {
         const std::string frame(*it);
         tf::StampedTransform transform;
-        listener.lookupTransform(target_frame,frame,ros::Time(0),transform);
+        try{
+            listener.lookupTransform(target_frame,frame,ros::Time(0),transform);
+        }catch (tf::TransformException ex){
+            ROS_ERROR_THROTTLE(1,"%s",ex.what());
+            continue;
+        }
         skTfOut.insert(SkPair(frame,transform));
     }
 }
@@ -103,33 +108,31 @@ int main(int argc, char** argv){
     ros::Rate rate(100.0);
 
     while (node.ok()){
-        try{
-            SkTf skTf;
-            for(VString::const_iterator it=allJoints.begin();it!=allJoints.end();++it)
-            {
-                getSKVectors(target_frame,*it,listener,skTf);
-            }
-            if(skTf.size() > 0)
-            {
-                ROS_INFO_ONCE("Receiving skeleton frame from the tracker.");
-                SkPair min = getMin(skTf);
-                geometry_msgs::Vector3 Vout;
-                Vout.x = min.second.getOrigin().x();
-                Vout.y = min.second.getOrigin().y();
-                Vout.z = min.second.getOrigin().z();
-                vector_pub.publish(Vout);
 
-                std_msgs::String Sout;
-                Sout.data = min.first;
-                string_pub.publish(Sout);
-                ROS_INFO_ONCE("Publishing distance vector topic ~vector_closest_frame (in %s frame) and frame name ~closest_frame ",target_frame.c_str());
-            }else{
-                ROS_WARN_THROTTLE(1,"No skeleton data received from the tracker. Did you launch the tracker ?");
-            }
+        SkTf skTf;
+        for(VString::const_iterator it=allJoints.begin();it!=allJoints.end();++it)
+        {
+            getSKVectors(target_frame,*it,listener,skTf);
         }
-        catch (tf::TransformException ex){
-            ROS_ERROR_THROTTLE(1,"%s",ex.what());
+        if(skTf.size() > 0)
+        {
+            ROS_INFO_ONCE("Receiving skeleton frame from the tracker.");
+            SkPair min = getMin(skTf);
+            geometry_msgs::Vector3 Vout;
+            Vout.x = min.second.getOrigin().x();
+            Vout.y = min.second.getOrigin().y();
+            Vout.z = min.second.getOrigin().z();
+            vector_pub.publish(Vout);
+
+            std_msgs::String Sout;
+            Sout.data = min.first;
+            string_pub.publish(Sout);
+            ROS_INFO_ONCE("Publishing distance vector topic ~vector_closest_frame (in %s frame) and frame name ~closest_frame ",target_frame.c_str());
+        }else{
+            ROS_WARN_THROTTLE(1,"No skeleton data received from the tracker. Did you launch the tracker ?");
         }
+
+
         ros::spinOnce();
         rate.sleep();
     }
