@@ -103,7 +103,6 @@ int main(int argc, char** argv){
     ros::Rate rate(100.0);
 
     while (node.ok()){
-        ros::spinOnce();
         try{
             SkTf skTf;
             for(VString::const_iterator it=allJoints.begin();it!=allJoints.end();++it)
@@ -129,8 +128,9 @@ int main(int argc, char** argv){
             }
         }
         catch (tf::TransformException ex){
-            ROS_ERROR("%s",ex.what());
+            ROS_ERROR_THROTTLE(1,"%s",ex.what());
         }
+        ros::spinOnce();
         rate.sleep();
     }
     return 0;
