@@ -6,6 +6,7 @@
 #include <map>
 #include <std_msgs/Float32.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Vector3Stamped.h>.h>
 #include <std_msgs/String.h>
 
 using namespace std;
@@ -76,14 +77,23 @@ int main(int argc, char** argv){
     ros::NodeHandle node("~");
     ros::Publisher vector_pub = node.advertise<geometry_msgs::Vector3>("vector_closest_frame",1);
     ros::Publisher string_pub = node.advertise<std_msgs::String>("closest_frame",1);
+    ros::Publisher dist_pub = node.advertise<std_msgs::Float32>("distance_frame",1);
 
     tf::TransformListener listener;
 
-    std::string target_frame("/base_link");
+    std::string target_frame("/camera_link");
     if(! node.getParam("target_frame",target_frame))
         ROS_WARN_STREAM("Target frame argument not set, using default : "<<target_frame);
     else
         ROS_INFO_STREAM("Target frame is "<<target_frame);
+
+    /*std::string base_frame(target_frame); // /base_link /world etc
+    if(! node.getParam("base_frame",base_frame))
+        ROS_WARN_STREAM("Base frame argument not set, using default : "<<base_frame);
+    else
+        ROS_INFO_STREAM("Base frame is "<<base_frame);*/
+
+
     /* Skeleton definition */
     const std::string J[15] =
     {
@@ -122,7 +132,18 @@ int main(int argc, char** argv){
             Vout.x = min.second.getOrigin().x();
             Vout.y = min.second.getOrigin().y();
             Vout.z = min.second.getOrigin().z();
+
+            std_msgs::Float32 Dout;
+            Dout.data = Vout.x*Vout.x + Vout.y*Vout.y + Vout.z*Vout.z;
+            dist_pub.publish(Dout);
             vector_pub.publish(Vout);
+
+            /* Transform to base_frame
+            geometry_msgs::Vector3Stamped vin,vout;
+            vin.header.frame_id = min.first;
+            vin.vector = Vout;
+            listener.transformVector(base_frame,vin,vout);
+            vector_pub.publish(vout.vector);*/
 
             std_msgs::String Sout;
             Sout.data = min.first;
